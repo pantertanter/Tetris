@@ -84,7 +84,7 @@ class GameView(context: Context) : View(context) {
         super.onDraw(canvas)
 
         if (gameOver) {
-            drawGameOver(canvas) // Draw the game over message
+            drawGameOverMessage(canvas) // Draw the game over message
             return // Stop further drawing
         }
 
@@ -97,14 +97,15 @@ class GameView(context: Context) : View(context) {
         drawFastDownButton(canvas) // Draw the quick drop button
     }
 
-    private fun drawGameOver(canvas: Canvas) {
-        paint.color = Color.RED // Color for the game over text
-        paint.textSize = 120f // Large text size
-        val text = "Game Over"
-        val textWidth = paint.measureText(text) // Get text width for centering
-        val x = (width - textWidth) / 2 // Center the text horizontally
-        val y = height / 2 // Center the text vertically
-        canvas.drawText(text, x, y.toFloat(), paint) // Draw the text
+    // Method to draw the game over message
+    private fun drawGameOverMessage(canvas: Canvas) {
+        val paint = Paint().apply {
+            color = Color.RED
+            textSize = 100f
+            textAlign = Paint.Align.CENTER
+        }
+        val message = "Game Over!"
+        canvas.drawText(message, (canvas.width / 2).toFloat(), (canvas.height / 2).toFloat(), paint)
     }
 
     private fun drawLevel(canvas: Canvas) {
@@ -279,6 +280,12 @@ class GameView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                // Check if the game is over
+                if (gameOver) {
+                    resetGame() // Call restartGame method if the game is over
+                    return true // Return early to prevent further processing
+                }
+
                 val x = event.x
                 val y = event.y
 
@@ -311,16 +318,11 @@ class GameView(context: Context) : View(context) {
     }
 
     private fun updateLevel(linesCleared: Int) {
-        val levelsGained = linesCleared // Increase level by the number of lines cleared
-        level += levelsGained // Increment the level by the number of lines cleared
-
-        // Ensure the level is capped at a maximum level (if needed)
-        if (level > 10) {
-            level = 10 // Max level is 10
-        }
-
+        level += linesCleared // Increase level by the number of lines cleared
+        if (level > 10) level = 10 // Cap the level at a maximum
         updateDropDelay() // Adjust the drop delay based on the new level
     }
+
 
     private fun getNextTetromino(): Tetromino {
         val newType = TetrominoType.values().random() // Randomly select a Tetromino type
@@ -340,7 +342,7 @@ class GameView(context: Context) : View(context) {
         // Check for game over condition
         if (isGameOver(newTetromino)) {
             gameOver = true // Set the game over flag
-            gameOver
+            onGameOver() // Handle game over logic
         }
 
         return newTetromino
@@ -404,13 +406,33 @@ class GameView(context: Context) : View(context) {
             TetrominoType.L -> Color.rgb(255, 165, 0) // Orange color for L
         }
 
+        var lockedAtTop = false // Flag to check if locking occurs at the top
+
         for (i in tetromino.shape.indices) {
             for (j in tetromino.shape[i].indices) {
                 if (tetromino.shape[i][j] != 0) {
-                    grid[tetromino.yPos + i][tetromino.xPos + j] = color // Lock with the Tetromino's color
+                    val y = tetromino.yPos + i
+                    val x = tetromino.xPos + j
+
+                    if (y == 0) {
+                        lockedAtTop = true // Locking occurs at the top row
+                    }
+
+                    grid[y][x] = color // Lock the Tetromino's color
                 }
             }
         }
+
+        // Trigger game over if the piece locks at the top row
+        if (lockedAtTop) {
+            onGameOver() // End the game when locking at the top
+        }
+    }
+
+    fun onGameOver() {
+        gameOver = true // Set the gameOver flag
+        handler.removeCallbacks(gameRunnable) // Stop the game loop
+        invalidate() // Redraw the view to show the "Game Over" message
     }
 
     fun isGameOver(tetromino: Tetromino): Boolean {
@@ -427,23 +449,51 @@ class GameView(context: Context) : View(context) {
     }
 
     fun clearFullLines() {
-        var linesCleared = 0 // Counter for lines cleared
+        var linesCleared = 0
         for (i in grid.indices) {
-            if (grid[i].all { it != 0 }) { // Check if the line is full
+            if (grid[i].all { it != 0 }) { // Line is full
                 linesCleared++
-                grid[i] = IntArray(gridWidth) // Clear the line
                 for (j in i downTo 1) {
-                    grid[j] = grid[j - 1] // Shift down
+                    grid[j] = grid[j - 1] // Shift lines down
                 }
-                grid[0] = IntArray(gridWidth) // Empty row at the top
+                grid[0] = IntArray(gridWidth) // Clear the top line
             }
         }
 
         if (linesCleared > 0) {
-            score += linesCleared * 100 // Update score based on lines cleared
-            updateLevel(linesCleared) // Update the level with the number of lines cleared
+            score += linesCleared * 100 // Update score
+            updateLevel(linesCleared) // Update level
         }
     }
+
+
+    // Method to reset the game
+    fun resetGame() {
+        // Reset game-related variables
+        score = 0 // Reset score
+        level = 1 // Reset level, if applicable
+        gameOver = false // Reset game over status
+
+        // Initialize game state
+        initializeGame()  // Ensure this method is defined to set up the game
+
+        // Start the game loop again
+        handler.post(gameRunnable) // Restart the game loop
+    }
+
+
+    private fun initializeGame() {
+        // Reset game variables
+        score = 0
+        level = 1
+        gameOver = false
+        grid.forEachIndexed { index, _ ->
+            grid[index] = IntArray(gridWidth) // Reset each row to empty
+        }
+        tetromino = getNextTetromino() // Get the first Tetromino
+        updateDropDelay() // Reset the drop delay
+    }
+
 
     init {
         handler.post(gameRunnable) // Start the game loop
