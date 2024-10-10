@@ -13,6 +13,8 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.view.MotionEvent
+import android.media.MediaPlayer
+import com.example.tetris.R
 
 class GameView(context: Context) : View(context) {
     private val paint = Paint()
@@ -34,12 +36,15 @@ class GameView(context: Context) : View(context) {
     // Score variables
     private var score = 0 // Initialize the score
     private var level = 1 // Initialize the level
-    private var gameOver = false
+    private var gameOver = true
 
 
     // Game loop handler
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var gameRunnable: Runnable
+
+    // Sound effects
+    private var mediaPlayer: MediaPlayer? = null
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -99,14 +104,28 @@ class GameView(context: Context) : View(context) {
 
     // Method to draw the game over message
     private fun drawGameOverMessage(canvas: Canvas) {
-        val paint = Paint().apply {
+        val textPaint = Paint().apply {
             color = Color.RED
             textSize = 100f
             textAlign = Paint.Align.CENTER
         }
-        val message = "Game Over!"
-        canvas.drawText(message, (canvas.width / 2).toFloat(), (canvas.height / 2).toFloat(), paint)
+
+        // Base Y position for the first text
+        var baseY = (canvas.height / 2).toFloat() - 200
+
+        // Line spacing (adjust this value as needed)
+        val lineSpacing = 200f // Change this to increase or decrease spacing
+
+        // Draw each line with appropriate spacing
+        canvas.drawText("Game Over", (canvas.width / 2).toFloat(), baseY, textPaint)
+        baseY += lineSpacing // Move down for the next line
+        canvas.drawText("Score: $score", (canvas.width / 2).toFloat(), baseY, textPaint)
+        baseY += lineSpacing // Move down for the next line
+        canvas.drawText("Level: $level", (canvas.width / 2).toFloat(), baseY, textPaint)
+        baseY += lineSpacing // Move down for the next line
+        canvas.drawText("Tap to restart", (canvas.width / 2).toFloat(), baseY, textPaint)
     }
+
 
     private fun drawLevel(canvas: Canvas) {
         paint.color = Color.YELLOW // Bright color for the level
@@ -352,6 +371,7 @@ class GameView(context: Context) : View(context) {
         // Check for collision with the block below
         if (!gameOver && !checkCollision(tetromino, tetromino.xPos, tetromino.yPos + 1)) {
             tetromino.yPos++ // Move down if no collision
+            playClickSound(context) // Make sure to pass the current context
         } else {
             if (!gameOver) { // Only lock if game is not over
                 lockPiece(tetromino) // Lock the Tetromino in place
@@ -364,7 +384,22 @@ class GameView(context: Context) : View(context) {
         invalidate()
     }
 
+    fun playClickSound(context: Context) {
+        // Reset MediaPlayer if it's already playing
+        if (mediaPlayer != null) {
+            mediaPlayer!!.release()
+        }
 
+        // Create MediaPlayer instance with the sound resource
+        mediaPlayer = MediaPlayer.create(context, R.raw.click)
+        mediaPlayer?.setOnCompletionListener {
+            // Release the MediaPlayer once the sound has finished playing
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+
+        mediaPlayer?.start() // Start playing the sound
+    }
 
     fun moveLeft() {
         if (!checkCollision(tetromino, tetromino.xPos - 1, tetromino.yPos)) {
