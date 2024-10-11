@@ -36,8 +36,8 @@ class GameView(context: Context) : View(context) {
     // Score variables
     private var score = 0 // Initialize the score
     private var level = 1 // Initialize the level
-    private var gameOver = true
-
+    private var gameOver = false
+    private var paused = false  // Track whether the game is paused
 
     // Game loop handler
     private val handler = Handler(Looper.getMainLooper())
@@ -93,13 +93,73 @@ class GameView(context: Context) : View(context) {
             return // Stop further drawing
         }
 
+        if (paused) {
+            drawPauseScreen(canvas) // Show the paused screen
+            drawResumeButton(canvas) // Draw the resume button when paused
+            return
+        }
+
         drawBackground(canvas)  // Draw the background first
         drawGrid(canvas) // Draw the game grid
         drawTetromino(canvas) // Draw the current Tetromino
         drawScore(canvas) // Draw the current score
         drawLevel(canvas) // Draw the current level
-        drawRotateButton(canvas) // Draw the rotation button
+        drawPauseButton(canvas) // Draw the pause button
+        drawRotateButton(canvas) // Draw the rotate button
         drawFastDownButton(canvas) // Draw the quick drop button
+    }
+
+    private fun drawResumeButton(canvas: Canvas) {
+        // Draw the resume button (green color)
+        paint.color = Color.parseColor("#00FF00") // Green color
+        val buttonX = (width / 2) - 75f // Center the button horizontally
+        val buttonY = (height / 2) + 50f // Position below the paused message
+        val buttonWidth = 150f
+        val buttonHeight = 100f
+
+        canvas.drawRoundRect(
+            buttonX, buttonY, buttonX + buttonWidth, buttonY + buttonHeight,
+            30f, 30f, paint
+        )
+        paint.color = Color.WHITE
+        paint.textSize = 40f
+        canvas.drawText("Resume", buttonX + 20, buttonY + 60, paint)
+    }
+
+    private fun drawPauseScreen(canvas: Canvas) {
+        // Draw a semi-transparent overlay
+        val paintOverlay = Paint().apply {
+            color = Color.argb(150, 0, 0, 0) // Semi-transparent black
+        }
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paintOverlay)
+
+        // Draw the "Paused" message
+        val textPaint = Paint().apply {
+            color = Color.WHITE
+            textSize = 100f
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(10f, 5f, 5f, Color.BLACK)
+        }
+
+        val baseY = (canvas.height / 2).toFloat() - 100
+        canvas.drawText("Paused", (canvas.width / 2).toFloat(), baseY, textPaint)
+    }
+
+    private fun drawPauseButton(canvas: Canvas) {
+        // Draw the pause button (bright red color)
+        paint.color = Color.parseColor("#FF0000") // Red color
+        val buttonX = width - 200f
+        val buttonY = 50f // Position at the top right
+        val buttonWidth = 150f
+        val buttonHeight = 100f
+
+        canvas.drawRoundRect(
+            buttonX, buttonY, buttonX + buttonWidth, buttonY + buttonHeight,
+            30f, 30f, paint
+        )
+        paint.color = Color.WHITE
+        paint.textSize = 40f
+        canvas.drawText("Pause", buttonX + 30, buttonY + 60, paint)
     }
 
     // Method to draw the game over message
@@ -295,6 +355,22 @@ class GameView(context: Context) : View(context) {
         canvas.drawText("Quick", fastButtonX + 40, fastButtonY + 60, paint)
     }
 
+    private fun togglePause() {
+        paused = !paused // Toggle the pause state
+        if (paused) {
+            handler.removeCallbacks(gameRunnable) // Pause the game loop
+            fastDropHandler.removeCallbacks(fastDropRunnable) // Stop fast drop if running
+            mediaPlayer?.pause() // Pause sound effects if needed
+        } else {
+            handler.postDelayed(gameRunnable, dropDelay) // Resume the game loop
+            if (isFastDropping) {
+                fastDropHandler.post(fastDropRunnable) // Resume fast drop if it was active
+            }
+            mediaPlayer?.start() // Resume sounds if applicable
+        }
+        invalidate() // Redraw the view to reflect the paused state
+    }
+
     private fun rotateTetromino() {
         val originalShape = tetromino.shape // Save original shape
         tetromino.rotate() // Rotate the tetromino
@@ -308,26 +384,36 @@ class GameView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // Check if the game is over
-                if (gameOver) {
-                    resetGame() // Call restartGame method if the game is over
-                    return true // Return early to prevent further processing
-                }
-
+                // Handle Pause/Resume button tap
                 val x = event.x
                 val y = event.y
 
-                // Check if the rotate button was pressed (now on the left)
+                // Pause button press detection
+                if (x > width - 220 && y < 150) {
+                    togglePause() // Toggle pause state
+                    return true
+                }
+
+                // Resume button press detection (when paused)
+                if (paused && x > (width / 2) - 75 && x < (width / 2) + 75 &&
+                    y > (height / 2) + 50 && y < (height / 2) + 150) {
+                    togglePause() // Resume the game
+                    return true
+                }
+
+                // If game is over, restart the game
+                if (gameOver) {
+                    resetGame() // Restart game if game over
+                    return true
+                }
+
+                // Handle touch events for other buttons
                 if (x < 220 && y > height - 220) {
                     rotateTetromino() // Rotate Tetromino
-                }
-                // Check if the fast down button was pressed (now on the right)
-                else if (x > width - 220 && y > height - 220) {
+                } else if (x > width - 220 && y > height - 220) {
                     isFastDropping = true
                     fastDropHandler.post(fastDropRunnable) // Start fast drop
-                }
-                // Determine the direction based on touch position
-                else {
+                } else {
                     if (x < width / 2) {
                         moveLeft()
                     } else {
