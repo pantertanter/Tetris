@@ -27,8 +27,8 @@ class GameView(context: Context) : View(context) {
 
     // Grid dimensions (10x20 grid)
     private var blockSize = 0 // Initialize blockSize
-    private val gridWidth = 10
-    private val gridHeight = 20
+    private val gridWidth = 15
+    private val gridHeight = 30
 
     // Level variables
     private var dropDelay: Long = 1000 // Initial delay for dropping the Tetromino
@@ -36,7 +36,7 @@ class GameView(context: Context) : View(context) {
     // Score variables
     private var score = 0 // Initialize the score
     private var level = 1 // Initialize the level
-    private var gameOver = true
+    private var gameOver = false
 
 
     // Game loop handler
