@@ -36,7 +36,7 @@ class GameView(context: Context) : View(context) {
     // Score variables
     private var score = 0 // Initialize the score
     private var level = 1 // Initialize the level
-    private var gameOver = false
+    private var gameOver = true
 
 
     // Game loop handler
@@ -104,10 +104,20 @@ class GameView(context: Context) : View(context) {
 
     // Method to draw the game over message
     private fun drawGameOverMessage(canvas: Canvas) {
+        // 1. Draw the background gradient
+        val paint = Paint()
+        val gradient = LinearGradient(0f, 0f, 0f, height.toFloat(),
+            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP)
+        paint.shader = gradient
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+
+        // 2. Now, draw the game over text
         val textPaint = Paint().apply {
-            color = Color.RED
+            color = Color.WHITE  // White text for better contrast against the background
             textSize = 100f
             textAlign = Paint.Align.CENTER
+            // Adding a slight shadow effect for readability
+            setShadowLayer(10f, 5f, 5f, Color.BLACK)  // Adds a shadow to the text
         }
 
         // Base Y position for the first text
@@ -125,7 +135,6 @@ class GameView(context: Context) : View(context) {
         baseY += lineSpacing // Move down for the next line
         canvas.drawText("Tap to restart", (canvas.width / 2).toFloat(), baseY, textPaint)
     }
-
 
     private fun drawLevel(canvas: Canvas) {
         paint.color = Color.YELLOW // Bright color for the level
@@ -401,6 +410,23 @@ class GameView(context: Context) : View(context) {
         mediaPlayer?.start() // Start playing the sound
     }
 
+    fun playGameOverSound(context: Context) {
+        // Reset MediaPlayer if it's already playing
+        if (mediaPlayer != null) {
+            mediaPlayer!!.release()
+        }
+
+        // Create MediaPlayer instance with the sound resource
+        mediaPlayer = MediaPlayer.create(context, R.raw.gameover)
+        mediaPlayer?.setOnCompletionListener {
+            // Release the MediaPlayer once the sound has finished playing
+            mediaPlayer?.release()
+            mediaPlayer = null
+        }
+
+        mediaPlayer?.start() // Start playing the sound
+    }
+
     fun moveLeft() {
         if (!checkCollision(tetromino, tetromino.xPos - 1, tetromino.yPos)) {
             tetromino.xPos--
@@ -467,6 +493,7 @@ class GameView(context: Context) : View(context) {
     fun onGameOver() {
         gameOver = true // Set the gameOver flag
         handler.removeCallbacks(gameRunnable) // Stop the game loop
+        playGameOverSound(context) // Play the game over sound
         invalidate() // Redraw the view to show the "Game Over" message
     }
 
