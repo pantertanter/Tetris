@@ -36,6 +36,7 @@ class GameView(context: Context) : View(context) {
     // Score variables
     private var score = 0 // Initialize the score
     private var level = 1 // Initialize the level
+    private var gameIsStarted = false // Track whether the game has started
     private var gameOver = false
     private var paused = false  // Track whether the game is paused
 
@@ -95,7 +96,11 @@ class GameView(context: Context) : View(context) {
 
         if (paused) {
             drawPauseScreen(canvas) // Show the paused screen
-            drawResumeButton(canvas) // Draw the resume button when paused
+            return
+        }
+
+        if (!gameIsStarted) {
+            drawStartScreen(canvas) // Show the start screen
             return
         }
 
@@ -109,41 +114,66 @@ class GameView(context: Context) : View(context) {
         drawFastDownButton(canvas) // Draw the quick drop button
     }
 
-    private fun drawResumeButton(canvas: Canvas) {
-        // Draw the resume button (green color)
-        paint.color = Color.parseColor("#00FF00") // Green color
-        val buttonX = (width / 2) - 75f // Center the button horizontally
-        val buttonY = (height / 2) + 50f // Position below the paused message
-        val buttonWidth = 150f
-        val buttonHeight = 100f
-
-        canvas.drawRoundRect(
-            buttonX, buttonY, buttonX + buttonWidth, buttonY + buttonHeight,
-            30f, 30f, paint
-        )
-        paint.color = Color.WHITE
-        paint.textSize = 40f
-        canvas.drawText("Resume", buttonX + 20, buttonY + 60, paint)
-    }
-
     private fun drawPauseScreen(canvas: Canvas) {
-        // Draw a semi-transparent overlay
-        val paintOverlay = Paint().apply {
-            color = Color.argb(150, 0, 0, 0) // Semi-transparent black
-        }
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paintOverlay)
+        // 1. Draw the background gradient
+        val paint = Paint()
+        val gradient = LinearGradient(
+            0f, 0f, 0f, height.toFloat(),
+            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP
+        )
+        paint.shader = gradient
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        // Draw the "Paused" message
+        // 2. Now, draw the game over text
         val textPaint = Paint().apply {
-            color = Color.WHITE
+            color = Color.WHITE  // White text for better contrast against the background
             textSize = 100f
             textAlign = Paint.Align.CENTER
-            setShadowLayer(10f, 5f, 5f, Color.BLACK)
+            // Adding a slight shadow effect for readability
+            setShadowLayer(10f, 5f, 5f, Color.BLACK)  // Adds a shadow to the text
         }
 
-        val baseY = (canvas.height / 2).toFloat() - 100
-        canvas.drawText("Paused", (canvas.width / 2).toFloat(), baseY, textPaint)
+        // Base Y position for the first text
+        var baseY = (canvas.height / 2).toFloat() - 200
+
+        // Line spacing (adjust this value as needed)
+        val lineSpacing = 200f // Change this to increase or decrease spacing
+
+        // Draw each line with appropriate spacing
+
+        canvas.drawText("Tap to resume", (canvas.width / 2).toFloat(), baseY, textPaint)
     }
+
+    private fun drawStartScreen(canvas: Canvas) {
+        // 1. Draw the background gradient
+        val paint = Paint()
+        val gradient = LinearGradient(
+            0f, 0f, 0f, height.toFloat(),
+            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP
+        )
+        paint.shader = gradient
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+
+        // 2. Now, draw the game over text
+        val textPaint = Paint().apply {
+            color = Color.WHITE  // White text for better contrast against the background
+            textSize = 100f
+            textAlign = Paint.Align.CENTER
+            // Adding a slight shadow effect for readability
+            setShadowLayer(10f, 5f, 5f, Color.BLACK)  // Adds a shadow to the text
+        }
+
+        // Base Y position for the first text
+        var baseY = (canvas.height / 2).toFloat() - 200
+
+        // Line spacing (adjust this value as needed)
+        val lineSpacing = 200f // Change this to increase or decrease spacing
+
+        // Draw each line with appropriate spacing
+
+        canvas.drawText("Tap to start", (canvas.width / 2).toFloat(), baseY, textPaint)
+    }
+
 
     private fun drawPauseButton(canvas: Canvas) {
         // Draw the pause button (bright red color)
@@ -394,9 +424,8 @@ class GameView(context: Context) : View(context) {
                     return true
                 }
 
-                // Resume button press detection (when paused)
-                if (paused && x > (width / 2) - 75 && x < (width / 2) + 75 &&
-                    y > (height / 2) + 50 && y < (height / 2) + 150) {
+                // Resume press detection (when paused)
+                if (paused) {
                     togglePause() // Resume the game
                     return true
                 }
@@ -404,6 +433,11 @@ class GameView(context: Context) : View(context) {
                 // If game is over, restart the game
                 if (gameOver) {
                     resetGame() // Restart game if game over
+                    return true
+                }
+
+                if (!gameIsStarted) {
+                    gameIsStarted = true
                     return true
                 }
 
@@ -613,7 +647,6 @@ class GameView(context: Context) : View(context) {
             updateLevel(linesCleared) // Update level
         }
     }
-
 
     // Method to reset the game
     fun resetGame() {
