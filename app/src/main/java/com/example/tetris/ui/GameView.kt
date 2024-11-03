@@ -449,7 +449,7 @@ class GameView(context: Context) : View(context) {
             TetrominoType.J -> Color.BLUE
             TetrominoType.L -> Color.rgb(255, 165, 0) // Custom orange color for L
         }
-                val newTetromino = TETROMINOS[newType]?.copy(color = color, xPos = 3, yPos = 0)
+                val newTetromino = TETROMINOS[newType]?.copy(color = color, xPos = 6, yPos = 0)
                 ?: throw IllegalStateException("Tetromino type $newType not found in TETROMINOS map.")
 
 
