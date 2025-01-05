@@ -109,9 +109,6 @@ class GameView(context: Context) : View(context) {
         drawTetromino(canvas) // Draw the current Tetromino
         drawScore(canvas) // Draw the current score
         drawLevel(canvas) // Draw the current level
-        drawPauseButton(canvas) // Draw the pause button
-        drawRotateButton(canvas) // Draw the rotate button
-        drawFastDownButton(canvas) // Draw the quick drop button
     }
 
     private fun drawPauseScreen(canvas: Canvas) {
@@ -172,24 +169,6 @@ class GameView(context: Context) : View(context) {
         // Draw each line with appropriate spacing
 
         canvas.drawText("Tap to start", (canvas.width / 2).toFloat(), baseY, textPaint)
-    }
-
-
-    private fun drawPauseButton(canvas: Canvas) {
-        // Draw the pause button (bright red color)
-        paint.color = Color.parseColor("#FF0000") // Red color
-        val buttonX = width - 200f
-        val buttonY = 50f // Position at the top right
-        val buttonWidth = 150f
-        val buttonHeight = 100f
-
-        canvas.drawRoundRect(
-            buttonX, buttonY, buttonX + buttonWidth, buttonY + buttonHeight,
-            30f, 30f, paint
-        )
-        paint.color = Color.WHITE
-        paint.textSize = 40f
-        canvas.drawText("Pause", buttonX + 30, buttonY + 60, paint)
     }
 
     // Method to draw the game over message
@@ -347,43 +326,22 @@ class GameView(context: Context) : View(context) {
     }
 
     private fun drawBackground(canvas: Canvas) {
-        val paint = Paint()
-        val gradient = LinearGradient(0f, 0f, 0f, height.toFloat(),
-            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP)
+        // Initialize the gradient dynamically with the correct height
+        val gradient = LinearGradient(
+            0f, 0f, 0f, canvas.height.toFloat(),
+            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP
+        )
         paint.shader = gradient
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+
+        // Draw gradient background
+        canvas.drawRect(0f, 0f, canvas.width.toFloat(), canvas.height.toFloat(), paint)
+
+        // Reset shader for the bottom bar
+        paint.shader = null
+        paint.color = Color.BLACK // White color for the bottom bar
+        canvas.drawRect(0f, (canvas.height - 114).toFloat(), canvas.width.toFloat(), canvas.height.toFloat(), paint)
     }
 
-    private fun drawRotateButton(canvas: Canvas) {
-        paint.color = Color.parseColor("#FF0000") // Use a brighter red
-        val buttonX = 50f
-        val buttonY = (height - 220f) // Position
-        val buttonWidth = 200f
-        val buttonHeight = 100f
-
-        canvas.drawRoundRect(
-            buttonX, buttonY, buttonX + buttonWidth, buttonY + buttonHeight,
-            30f, 30f, paint
-        )
-        paint.color = Color.WHITE
-        paint.textSize = 40f
-        canvas.drawText("Rotate", buttonX + 40, buttonY + 60, paint) // Center the text
-    }
-
-    private fun drawFastDownButton(canvas: Canvas) {
-        paint.color = Color.parseColor("#00FF00") // Bright green for fast drop
-        val fastButtonX = width - 250f
-        val fastButtonY = (height - 220f)
-        val buttonWidth = 200f
-        val buttonHeight = 100f
-
-        canvas.drawRoundRect(
-            fastButtonX, fastButtonY, fastButtonX + buttonWidth, fastButtonY + buttonHeight,
-            30f, 30f, paint
-        )
-        paint.color = Color.WHITE
-        canvas.drawText("Quick", fastButtonX + 40, fastButtonY + 60, paint)
-    }
 
     private fun togglePause() {
         paused = !paused // Toggle the pause state
@@ -419,7 +377,7 @@ class GameView(context: Context) : View(context) {
                 val y = event.y
 
                 // Pause button press detection
-                if (x > width - 220 && y < 150) {
+                if (y < 150) {
                     togglePause() // Toggle pause state
                     return true
                 }
@@ -442,15 +400,16 @@ class GameView(context: Context) : View(context) {
                 }
 
                 // Handle touch events for other buttons
-                if (x < 220 && y > height - 220) {
+                if (y > 220 && y < height * 2 / 6) {
                     rotateTetromino() // Rotate Tetromino
-                } else if (x > width - 220 && y > height - 220) {
+                } else if (y > height * 4 / 6) {
                     isFastDropping = true
                     fastDropHandler.post(fastDropRunnable) // Start fast drop
                 } else {
-                    if (x < width / 2) {
+                    // Move left or right based on touch position
+                    if (x < width / 2 && y > height * 2 / 6 && y < height * 4 / 6) {
                         moveLeft()
-                    } else {
+                    } else if (x > width / 2 && y > height * 2 / 6 && y < height * 4 / 6) {
                         moveRight()
                     }
                 }
@@ -496,7 +455,7 @@ class GameView(context: Context) : View(context) {
         return newTetromino
     }
 
-    fun moveDown() {
+    private fun moveDown() {
         // Check for collision with the block below
         if (!gameOver && !checkCollision(tetromino, tetromino.xPos, tetromino.yPos + 1)) {
             tetromino.yPos++ // Move down if no collision
@@ -513,7 +472,7 @@ class GameView(context: Context) : View(context) {
         invalidate()
     }
 
-    fun playClickSound(context: Context) {
+    private fun playClickSound(context: Context) {
         // Reset MediaPlayer if it's already playing
         if (mediaPlayer != null) {
             mediaPlayer!!.release()
@@ -530,7 +489,7 @@ class GameView(context: Context) : View(context) {
         mediaPlayer?.start() // Start playing the sound
     }
 
-    fun playGameOverSound(context: Context) {
+    private fun playGameOverSound(context: Context) {
         // Reset MediaPlayer if it's already playing
         if (mediaPlayer != null) {
             mediaPlayer!!.release()
@@ -547,21 +506,21 @@ class GameView(context: Context) : View(context) {
         mediaPlayer?.start() // Start playing the sound
     }
 
-    fun moveLeft() {
+    private fun moveLeft() {
         if (!checkCollision(tetromino, tetromino.xPos - 1, tetromino.yPos)) {
             tetromino.xPos--
         }
         invalidate() // Redraw after moving
     }
 
-    fun moveRight() {
+    private fun moveRight() {
         if (!checkCollision(tetromino, tetromino.xPos + 1, tetromino.yPos)) {
             tetromino.xPos++
         }
         invalidate() // Redraw after moving
     }
 
-    fun checkCollision(tetromino: Tetromino, newX: Int, newY: Int): Boolean {
+    private fun checkCollision(tetromino: Tetromino, newX: Int, newY: Int): Boolean {
         for (i in tetromino.shape.indices) {
             for (j in tetromino.shape[i].indices) {
                 if (tetromino.shape[i][j] != 0) {
@@ -576,7 +535,7 @@ class GameView(context: Context) : View(context) {
         return false
     }
 
-    fun lockPiece(tetromino: Tetromino) {
+    private fun lockPiece(tetromino: Tetromino) {
         val color = when (tetromino.type) {
             TetrominoType.I -> Color.CYAN
             TetrominoType.O -> Color.YELLOW
