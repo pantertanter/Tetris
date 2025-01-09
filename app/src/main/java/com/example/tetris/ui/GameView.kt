@@ -120,24 +120,111 @@ class GameView(context: Context) : View(context) {
         paint.shader = gradient
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        // 2. Now, draw the game over text
+        // 2. Draw the "Tap to Start" text
         val textPaint = Paint().apply {
-            color = Color.WHITE  // White text for better contrast against the background
+            color = Color.BLACK  // White text for better contrast
             textSize = 100f
             textAlign = Paint.Align.CENTER
-            // Adding a slight shadow effect for readability
-            setShadowLayer(10f, 5f, 5f, Color.BLACK)  // Adds a shadow to the text
+            setShadowLayer(10f, 5f, 5f, Color.BLACK) // Adds a shadow for readability
         }
 
-        // Base Y position for the first text
-        var baseY = (canvas.height / 2).toFloat() - 200
+        // 3. Draw rectangles for touch areas
+        paint.reset()
+        paint.style = Paint.Style.STROKE
+        paint.color = Color.BLACK
+        paint.strokeWidth = 12f
 
-        // Line spacing (adjust this value as needed)
-        val lineSpacing = 200f // Change this to increase or decrease spacing
+        val labelPaint = Paint().apply {
+            color = Color.YELLOW // Black text color for explanations
+            textSize = 100f
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(10f, 5f, 5f, Color.BLACK) // Adds a shadow for readability
+        }
 
-        // Draw each line with appropriate spacing
+        // Pause/Resume button area
+        val pauseAreaHeight = canvas.height * 0.1f // 10% of the screen height
+        canvas.drawRect(
+            0f,
+            0f,
+            canvas.width.toFloat(),
+            pauseAreaHeight,
+            paint
+        )
+        canvas.drawText(
+            "Pause/Resume", // Explanation text
+            (canvas.width / 2).toFloat(),
+            pauseAreaHeight / 2,
+            labelPaint
+        )
 
-        canvas.drawText("Tap to resume", (canvas.width / 2).toFloat(), baseY, textPaint)
+        // Rotate Tetromino area
+        val rotateAreaTop = pauseAreaHeight + 70f // Space after pause area
+        val rotateAreaHeight = canvas.height * 0.15f // 15% of the screen height
+        canvas.drawRect(
+            0f,
+            rotateAreaTop,
+            canvas.width.toFloat(),
+            rotateAreaTop + rotateAreaHeight,
+            paint
+        )
+        canvas.drawText(
+            "Rotate Tetromino", // Explanation text
+            (canvas.width / 2).toFloat(),
+            rotateAreaTop + rotateAreaHeight / 2,
+            labelPaint
+        )
+
+        // Left movement area
+        val movementAreaTop = rotateAreaTop + rotateAreaHeight + 70f
+        val movementAreaHeight = canvas.height * 0.25f
+        canvas.drawRect(
+            0f,
+            movementAreaTop,
+            (canvas.width / 2).toFloat(),
+            movementAreaTop + movementAreaHeight,
+            paint
+        )
+        canvas.drawText(
+            "Move Left", // Explanation text
+            (canvas.width / 4).toFloat(), // Centered in the left area
+            movementAreaTop + movementAreaHeight / 2,
+            labelPaint
+        )
+
+        // Right movement area
+        canvas.drawRect(
+            (canvas.width / 2).toFloat(),
+            movementAreaTop,
+            canvas.width.toFloat(),
+            movementAreaTop + movementAreaHeight,
+            paint
+        )
+        canvas.drawText(
+            "Move Right", // Explanation text
+            (3 * canvas.width / 4).toFloat(), // Centered in the right area
+            movementAreaTop + movementAreaHeight / 2,
+            labelPaint
+        )
+
+        // Fast drop area
+        val fastDropAreaTop = movementAreaTop + movementAreaHeight + 70f
+        canvas.drawRect(
+            0f,
+            fastDropAreaTop,
+            canvas.width.toFloat(),
+            canvas.height.toFloat(),
+            paint
+        )
+        canvas.drawText(
+            "Fast Drop", // Explanation text
+            (canvas.width / 2).toFloat(),
+            fastDropAreaTop + (canvas.height - fastDropAreaTop) / 2,
+            labelPaint
+        )
+
+        canvas.drawText("Tap to resume", (canvas.width / 2).toFloat(), fastDropAreaTop + (canvas.height - fastDropAreaTop) / 4, textPaint)
+
+        canvas.drawText("Touch layout", (canvas.width / 2).toFloat(), fastDropAreaTop + ((canvas.height - fastDropAreaTop) * 0.75).toFloat(), textPaint)
     }
 
     private fun drawStartScreen(canvas: Canvas) {
