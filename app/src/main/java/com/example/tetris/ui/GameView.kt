@@ -29,6 +29,8 @@ class GameView(context: Context) : View(context) {
     private var blockSize = 0 // Initialize blockSize
     private val gridWidth = 15
     private val gridHeight = 30
+    private var offsetX = 0
+    private var offsetY = 0
 
     // Level variables
     private var dropDelay: Long = 1000 // Initial delay for dropping the Tetromino
@@ -49,8 +51,12 @@ class GameView(context: Context) : View(context) {
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        blockSize =
-            (w / gridWidth).coerceAtMost(h / gridHeight) // Set blockSize based on the smallest dimension
+        blockSize = (w / gridWidth).coerceAtMost(h / gridHeight)
+        val totalGridWidth = blockSize * gridWidth
+        val totalGridHeight = blockSize * gridHeight
+
+        offsetX = (w - totalGridWidth) / 2
+        offsetY = (h - totalGridHeight) / 2
     }
 
     // Game grid represented by 2D array
@@ -120,29 +126,36 @@ class GameView(context: Context) : View(context) {
         paint.shader = gradient
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        // 2. Draw the "Tap to Start" text
+        // 2. Text scaling based on screen size
+        val baseTextSize = canvas.height * 0.05f // Base text size as 5% of the height
+
         val textPaint = Paint().apply {
-            color = Color.BLACK  // White text for better contrast
-            textSize = 100f
+            color = Color.BLACK
+            textSize = baseTextSize
             textAlign = Paint.Align.CENTER
-            setShadowLayer(10f, 5f, 5f, Color.BLACK) // Adds a shadow for readability
+            setShadowLayer(baseTextSize * 0.1f, 5f, 5f, Color.BLACK) // Shadow with 10% of text size
         }
 
-        // 3. Draw rectangles for touch areas
+        val labelPaint = Paint().apply {
+            color = Color.YELLOW
+            textSize = baseTextSize
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(baseTextSize * 0.1f, 5f, 5f, Color.BLACK)
+        }
+
         paint.reset()
         paint.style = Paint.Style.STROKE
         paint.color = Color.BLACK
-        paint.strokeWidth = 12f
+        paint.strokeWidth = canvas.height * 0.005f // Border width as 0.5% of height
 
-        val labelPaint = Paint().apply {
-            color = Color.YELLOW // Black text color for explanations
-            textSize = 100f
-            textAlign = Paint.Align.CENTER
-            setShadowLayer(10f, 5f, 5f, Color.BLACK) // Adds a shadow for readability
-        }
+        // 3. Calculate dynamic area heights
+        val padding = canvas.height * 0.02f // Padding between areas (2% of screen height)
+        val pauseAreaHeight = canvas.height * 0.1f
+        val rotateAreaHeight = canvas.height * 0.15f
+        val movementAreaHeight = canvas.height * 0.25f
+        val fastDropAreaHeight = canvas.height * 0.4f
 
         // Pause/Resume button area
-        val pauseAreaHeight = canvas.height * 0.1f // 10% of the screen height
         canvas.drawRect(
             0f,
             0f,
@@ -151,15 +164,14 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Pause/Resume", // Explanation text
+            "Pause Game",
             (canvas.width / 2).toFloat(),
-            pauseAreaHeight / 2,
+            pauseAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
         // Rotate Tetromino area
-        val rotateAreaTop = pauseAreaHeight + 70f // Space after pause area
-        val rotateAreaHeight = canvas.height * 0.15f // 15% of the screen height
+        val rotateAreaTop = pauseAreaHeight + padding
         canvas.drawRect(
             0f,
             rotateAreaTop,
@@ -168,15 +180,14 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Rotate Tetromino", // Explanation text
+            "Rotate Tetromino",
             (canvas.width / 2).toFloat(),
-            rotateAreaTop + rotateAreaHeight / 2,
+            rotateAreaTop + rotateAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
         // Left movement area
-        val movementAreaTop = rotateAreaTop + rotateAreaHeight + 70f
-        val movementAreaHeight = canvas.height * 0.25f
+        val movementAreaTop = rotateAreaTop + rotateAreaHeight + padding
         canvas.drawRect(
             0f,
             movementAreaTop,
@@ -185,9 +196,9 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Move Left", // Explanation text
-            (canvas.width / 4).toFloat(), // Centered in the left area
-            movementAreaTop + movementAreaHeight / 2,
+            "Move Left",
+            (canvas.width / 4).toFloat(),
+            movementAreaTop + movementAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
@@ -200,14 +211,14 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Move Right", // Explanation text
-            (3 * canvas.width / 4).toFloat(), // Centered in the right area
-            movementAreaTop + movementAreaHeight / 2,
+            "Move Right",
+            (3 * canvas.width / 4).toFloat(),
+            movementAreaTop + movementAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
         // Fast drop area
-        val fastDropAreaTop = movementAreaTop + movementAreaHeight + 70f
+        val fastDropAreaTop = movementAreaTop + movementAreaHeight + padding
         canvas.drawRect(
             0f,
             fastDropAreaTop,
@@ -216,15 +227,25 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Fast Drop", // Explanation text
+            "Fast Drop",
             (canvas.width / 2).toFloat(),
-            fastDropAreaTop + (canvas.height - fastDropAreaTop) / 2,
+            fastDropAreaTop + fastDropAreaHeight / 2,
             labelPaint
         )
 
-        canvas.drawText("Tap to resume", (canvas.width / 2).toFloat(), fastDropAreaTop + (canvas.height - fastDropAreaTop) / 4, textPaint)
-
-        canvas.drawText("Touch layout", (canvas.width / 2).toFloat(), fastDropAreaTop + ((canvas.height - fastDropAreaTop) * 0.75).toFloat(), textPaint)
+        // Additional text for guidance
+        canvas.drawText(
+            "Tap to resume",
+            (canvas.width / 2).toFloat(),
+            fastDropAreaTop + fastDropAreaHeight / 4,
+            textPaint
+        )
+        canvas.drawText(
+            "Touch layout",
+            (canvas.width / 2).toFloat(),
+            fastDropAreaTop + fastDropAreaHeight / 4 * 3,
+            textPaint
+        )
     }
 
     private fun drawStartScreen(canvas: Canvas) {
@@ -237,29 +258,36 @@ class GameView(context: Context) : View(context) {
         paint.shader = gradient
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        // 2. Draw the "Tap to Start" text
+        // 2. Text scaling based on screen size
+        val baseTextSize = canvas.height * 0.05f // Base text size as 5% of the height
+
         val textPaint = Paint().apply {
-            color = Color.BLACK  // White text for better contrast
-            textSize = 100f
+            color = Color.BLACK
+            textSize = baseTextSize
             textAlign = Paint.Align.CENTER
-            setShadowLayer(10f, 5f, 5f, Color.BLACK) // Adds a shadow for readability
+            setShadowLayer(baseTextSize * 0.1f, 5f, 5f, Color.BLACK) // Shadow with 10% of text size
         }
 
-        // 3. Draw rectangles for touch areas
+        val labelPaint = Paint().apply {
+            color = Color.YELLOW
+            textSize = baseTextSize
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(baseTextSize * 0.1f, 5f, 5f, Color.BLACK)
+        }
+
         paint.reset()
         paint.style = Paint.Style.STROKE
         paint.color = Color.BLACK
-        paint.strokeWidth = 12f
+        paint.strokeWidth = canvas.height * 0.005f // Border width as 0.5% of height
 
-        val labelPaint = Paint().apply {
-            color = Color.YELLOW // Black text color for explanations
-            textSize = 100f
-            textAlign = Paint.Align.CENTER
-            setShadowLayer(10f, 5f, 5f, Color.BLACK) // Adds a shadow for readability
-        }
+        // 3. Calculate dynamic area heights
+        val padding = canvas.height * 0.02f // Padding between areas (2% of screen height)
+        val pauseAreaHeight = canvas.height * 0.1f
+        val rotateAreaHeight = canvas.height * 0.15f
+        val movementAreaHeight = canvas.height * 0.25f
+        val fastDropAreaHeight = canvas.height * 0.4f
 
         // Pause/Resume button area
-        val pauseAreaHeight = canvas.height * 0.1f // 10% of the screen height
         canvas.drawRect(
             0f,
             0f,
@@ -268,15 +296,14 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Pause/Resume", // Explanation text
+            "Pause Game",
             (canvas.width / 2).toFloat(),
-            pauseAreaHeight / 2,
+            pauseAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
         // Rotate Tetromino area
-        val rotateAreaTop = pauseAreaHeight + 70f // Space after pause area
-        val rotateAreaHeight = canvas.height * 0.15f // 15% of the screen height
+        val rotateAreaTop = pauseAreaHeight + padding
         canvas.drawRect(
             0f,
             rotateAreaTop,
@@ -285,15 +312,14 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Rotate Tetromino", // Explanation text
+            "Rotate Tetromino",
             (canvas.width / 2).toFloat(),
-            rotateAreaTop + rotateAreaHeight / 2,
+            rotateAreaTop + rotateAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
         // Left movement area
-        val movementAreaTop = rotateAreaTop + rotateAreaHeight + 70f
-        val movementAreaHeight = canvas.height * 0.25f
+        val movementAreaTop = rotateAreaTop + rotateAreaHeight + padding
         canvas.drawRect(
             0f,
             movementAreaTop,
@@ -302,9 +328,9 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Move Left", // Explanation text
-            (canvas.width / 4).toFloat(), // Centered in the left area
-            movementAreaTop + movementAreaHeight / 2,
+            "Move Left",
+            (canvas.width / 4).toFloat(),
+            movementAreaTop + movementAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
@@ -317,14 +343,14 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Move Right", // Explanation text
-            (3 * canvas.width / 4).toFloat(), // Centered in the right area
-            movementAreaTop + movementAreaHeight / 2,
+            "Move Right",
+            (3 * canvas.width / 4).toFloat(),
+            movementAreaTop + movementAreaHeight / 2 + baseTextSize / 2,
             labelPaint
         )
 
         // Fast drop area
-        val fastDropAreaTop = movementAreaTop + movementAreaHeight + 70f
+        val fastDropAreaTop = movementAreaTop + movementAreaHeight + padding
         canvas.drawRect(
             0f,
             fastDropAreaTop,
@@ -333,15 +359,25 @@ class GameView(context: Context) : View(context) {
             paint
         )
         canvas.drawText(
-            "Fast Drop", // Explanation text
+            "Fast Drop",
             (canvas.width / 2).toFloat(),
-            fastDropAreaTop + (canvas.height - fastDropAreaTop) / 2,
+            fastDropAreaTop + fastDropAreaHeight / 2,
             labelPaint
         )
 
-        canvas.drawText("Tap to start", (canvas.width / 2).toFloat(), fastDropAreaTop + (canvas.height - fastDropAreaTop) / 4, textPaint)
-
-        canvas.drawText("Touch layout", (canvas.width / 2).toFloat(), fastDropAreaTop + ((canvas.height - fastDropAreaTop) * 0.75).toFloat(), textPaint)
+        // Additional text for guidance
+        canvas.drawText(
+            "Tap to Start",
+            (canvas.width / 2).toFloat(),
+            fastDropAreaTop + fastDropAreaHeight / 4,
+            textPaint
+        )
+        canvas.drawText(
+            "Touch layout",
+            (canvas.width / 2).toFloat(),
+            fastDropAreaTop + fastDropAreaHeight / 4 * 3,
+            textPaint
+        )
     }
 
     // Method to draw the game over message
@@ -391,7 +427,6 @@ class GameView(context: Context) : View(context) {
     }
 
     private fun drawTetromino(canvas: Canvas) {
-        // Set the color based on the Tetromino type
         paint.color = when (tetromino.type) {
             TetrominoType.I -> Color.CYAN
             TetrominoType.O -> Color.YELLOW
@@ -399,35 +434,33 @@ class GameView(context: Context) : View(context) {
             TetrominoType.S -> Color.GREEN
             TetrominoType.Z -> Color.RED
             TetrominoType.J -> Color.BLUE
-            TetrominoType.L -> Color.rgb(255, 165, 0) // Custom orange color
+            TetrominoType.L -> Color.rgb(255, 165, 0)
         }
 
-        // Draw each block of the Tetromino
         for (i in tetromino.shape.indices) {
             for (j in tetromino.shape[i].indices) {
                 if (tetromino.shape[i][j] != 0) {
-                    // Draw the block (fill it with color)
+                    // Render with offsetX and offsetY
                     canvas.drawRect(
-                        ((tetromino.xPos + j) * blockSize).toFloat(),
-                        ((tetromino.yPos + i) * blockSize).toFloat(),
-                        ((tetromino.xPos + j + 1) * blockSize).toFloat(),
-                        ((tetromino.yPos + i + 1) * blockSize).toFloat(),
+                        (offsetX + (tetromino.xPos + j) * blockSize).toFloat(),
+                        (offsetY + (tetromino.yPos + i) * blockSize).toFloat(),
+                        (offsetX + (tetromino.xPos + j + 1) * blockSize).toFloat(),
+                        (offsetY + (tetromino.yPos + i + 1) * blockSize).toFloat(),
                         paint
                     )
 
-                    // Draw the border (outline) around the block
-                    paint.color = Color.BLACK // Border color
+                    // Draw border
+                    paint.color = Color.BLACK
                     paint.style = Paint.Style.STROKE
-                    paint.strokeWidth = 4f // Thicker border for more visibility
                     canvas.drawRect(
-                        ((tetromino.xPos + j) * blockSize).toFloat(),
-                        ((tetromino.yPos + i) * blockSize).toFloat(),
-                        ((tetromino.xPos + j + 1) * blockSize).toFloat(),
-                        ((tetromino.yPos + i + 1) * blockSize).toFloat(),
+                        (offsetX + (tetromino.xPos + j) * blockSize).toFloat(),
+                        (offsetY + (tetromino.yPos + i) * blockSize).toFloat(),
+                        (offsetX + (tetromino.xPos + j + 1) * blockSize).toFloat(),
+                        (offsetY + (tetromino.yPos + i + 1) * blockSize).toFloat(),
                         paint
                     )
 
-                    // Reset the paint color for the next block
+                    paint.style = Paint.Style.FILL
                     paint.color = when (tetromino.type) {
                         TetrominoType.I -> Color.CYAN
                         TetrominoType.O -> Color.YELLOW
@@ -435,9 +468,8 @@ class GameView(context: Context) : View(context) {
                         TetrominoType.S -> Color.GREEN
                         TetrominoType.Z -> Color.RED
                         TetrominoType.J -> Color.BLUE
-                        TetrominoType.L -> Color.rgb(255, 165, 0) // Custom orange color
+                        TetrominoType.L -> Color.rgb(255, 165, 0)
                     }
-                    paint.style = Paint.Style.FILL // Reset paint style to fill for the next block
                 }
             }
         }
@@ -445,14 +477,14 @@ class GameView(context: Context) : View(context) {
 
     private fun drawGrid(canvas: Canvas) {
         for (i in 0 until gridHeight) {
-            for (j in 0 until gridWidth) {
+            for (j in 3 until gridWidth) {
                 if (grid[i][j] != 0) { // Assuming grid stores the color value
                     // Draw the block color
                     paint.color = grid[i][j]
                     canvas.drawRect(
-                        (j * blockSize).toFloat(),
+                        (offsetX + j * blockSize).toFloat(),
                         (i * blockSize).toFloat(),
-                        ((j + 1) * blockSize).toFloat(),
+                        (offsetX + (j + 1) * blockSize).toFloat(),
                         ((i + 1) * blockSize).toFloat(),
                         paint
                     )
@@ -463,33 +495,33 @@ class GameView(context: Context) : View(context) {
 
                     // Top edge
                     canvas.drawRect(
-                        (j * blockSize).toFloat(),
+                        (offsetX + j * blockSize).toFloat(),
                         (i * blockSize).toFloat(),
-                        ((j + 1) * blockSize).toFloat(),
+                        (offsetX + (j + 1) * blockSize).toFloat(),
                         (i * blockSize + borderWidth),
                         paint
                     )
                     // Bottom edge
                     canvas.drawRect(
-                        (j * blockSize).toFloat(),
+                        (offsetX + j * blockSize).toFloat(),
                         ((i + 1) * blockSize - borderWidth).toFloat(),
-                        ((j + 1) * blockSize).toFloat(),
+                        (offsetX + (j + 1) * blockSize).toFloat(),
                         ((i + 1) * blockSize).toFloat(),
                         paint
                     )
                     // Left edge
                     canvas.drawRect(
-                        (j * blockSize).toFloat(),
+                        (offsetX + j * blockSize).toFloat(),
                         (i * blockSize).toFloat(),
-                        (j * blockSize + borderWidth),
+                        (offsetX + j * blockSize + borderWidth),
                         ((i + 1) * blockSize).toFloat(),
                         paint
                     )
                     // Right edge
                     canvas.drawRect(
-                        ((j + 1) * blockSize - borderWidth).toFloat(),
+                        (offsetX + (j + 1) * blockSize - borderWidth).toFloat(),
                         (i * blockSize).toFloat(),
-                        ((j + 1) * blockSize).toFloat(),
+                        (offsetX + (j + 1) * blockSize).toFloat(),
                         ((i + 1) * blockSize).toFloat(),
                         paint
                     )
@@ -713,7 +745,9 @@ class GameView(context: Context) : View(context) {
                 if (tetromino.shape[i][j] != 0) {
                     val x = newX + j
                     val y = newY + i
-                    if (x < 0 || x >= gridWidth || y >= gridHeight || grid[y][x] != 0) {
+
+                    // Check within bounds and for existing blocks
+                    if (x < 0 || x >= gridWidth || y >= gridHeight || (y >= 0 && grid[y][x] != 0)) {
                         return true
                     }
                 }
@@ -721,6 +755,7 @@ class GameView(context: Context) : View(context) {
         }
         return false
     }
+
 
     private fun lockPiece(tetromino: Tetromino) {
         val color = when (tetromino.type) {
@@ -730,10 +765,10 @@ class GameView(context: Context) : View(context) {
             TetrominoType.S -> Color.GREEN
             TetrominoType.Z -> Color.RED
             TetrominoType.J -> Color.BLUE
-            TetrominoType.L -> Color.rgb(255, 165, 0) // Orange color for L
+            TetrominoType.L -> Color.rgb(255, 165, 0)
         }
 
-        var lockedAtTop = false // Flag to check if locking occurs at the top
+        var lockedAtTop = false
 
         for (i in tetromino.shape.indices) {
             for (j in tetromino.shape[i].indices) {
@@ -742,28 +777,30 @@ class GameView(context: Context) : View(context) {
                     val x = tetromino.xPos + j
 
                     if (y == 0) {
-                        lockedAtTop = true // Locking occurs at the top row
+                        lockedAtTop = true
                     }
 
-                    grid[y][x] = color // Lock the Tetromino's color
+                    // Use grid with offsetX
+                    if (x in 0 until gridWidth && y in 0 until gridHeight) {
+                        grid[y][x] = color
+                    }
                 }
             }
         }
 
-        // Trigger game over if the piece locks at the top row
         if (lockedAtTop) {
-            onGameOver() // End the game when locking at the top
+            onGameOver()
         }
     }
 
-    fun onGameOver() {
+    private fun onGameOver() {
         gameOver = true // Set the gameOver flag
         handler.removeCallbacks(gameRunnable) // Stop the game loop
         playGameOverSound(context) // Play the game over sound
         invalidate() // Redraw the view to show the "Game Over" message
     }
 
-    fun isGameOver(tetromino: Tetromino): Boolean {
+    private fun isGameOver(tetromino: Tetromino): Boolean {
         for (i in tetromino.shape.indices) {
             for (j in tetromino.shape[i].indices) {
                 if (tetromino.shape[i][j] != 0) { // Check for occupied blocks
@@ -776,7 +813,7 @@ class GameView(context: Context) : View(context) {
         return false // No collision with the top
     }
 
-    fun clearFullLines() {
+    private fun clearFullLines() {
         var linesCleared = 0
         for (i in grid.indices) {
             if (grid[i].all { it != 0 }) { // Line is full
@@ -795,7 +832,7 @@ class GameView(context: Context) : View(context) {
     }
 
     // Method to reset the game
-    fun resetGame() {
+    private fun resetGame() {
         // Reset game-related variables
         score = 0 // Reset score
         level = 1 // Reset level, if applicable
