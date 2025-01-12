@@ -427,6 +427,13 @@ class GameView(context: Context) : View(context) {
     }
 
     private fun drawTetromino(canvas: Canvas) {
+        val borderPaint = Paint().apply {
+            color = Color.BLACK
+            style = Paint.Style.STROKE
+            strokeWidth = 4f
+        }
+
+        paint.reset() // Reset paint
         paint.color = when (tetromino.type) {
             TetrominoType.I -> Color.CYAN
             TetrominoType.O -> Color.YELLOW
@@ -440,36 +447,16 @@ class GameView(context: Context) : View(context) {
         for (i in tetromino.shape.indices) {
             for (j in tetromino.shape[i].indices) {
                 if (tetromino.shape[i][j] != 0) {
-                    // Render with offsetX and offsetY
-                    canvas.drawRect(
-                        (offsetX + (tetromino.xPos + j) * blockSize).toFloat(),
-                        (offsetY + (tetromino.yPos + i) * blockSize).toFloat(),
-                        (offsetX + (tetromino.xPos + j + 1) * blockSize).toFloat(),
-                        (offsetY + (tetromino.yPos + i + 1) * blockSize).toFloat(),
-                        paint
-                    )
+                    val left = offsetX + (tetromino.xPos + j) * blockSize
+                    val top = offsetY + (tetromino.yPos + i) * blockSize
+                    val right = left + blockSize
+                    val bottom = top + blockSize
+
+                    // Draw filled block
+                    canvas.drawRect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat(), paint)
 
                     // Draw border
-                    paint.color = Color.BLACK
-                    paint.style = Paint.Style.STROKE
-                    canvas.drawRect(
-                        (offsetX + (tetromino.xPos + j) * blockSize).toFloat(),
-                        (offsetY + (tetromino.yPos + i) * blockSize).toFloat(),
-                        (offsetX + (tetromino.xPos + j + 1) * blockSize).toFloat(),
-                        (offsetY + (tetromino.yPos + i + 1) * blockSize).toFloat(),
-                        paint
-                    )
-
-                    paint.style = Paint.Style.FILL
-                    paint.color = when (tetromino.type) {
-                        TetrominoType.I -> Color.CYAN
-                        TetrominoType.O -> Color.YELLOW
-                        TetrominoType.T -> Color.MAGENTA
-                        TetrominoType.S -> Color.GREEN
-                        TetrominoType.Z -> Color.RED
-                        TetrominoType.J -> Color.BLUE
-                        TetrominoType.L -> Color.rgb(255, 165, 0)
-                    }
+                    canvas.drawRect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat(), borderPaint)
                 }
             }
         }
@@ -477,52 +464,29 @@ class GameView(context: Context) : View(context) {
 
     private fun drawGrid(canvas: Canvas) {
         for (i in 0 until gridHeight) {
-            for (j in 3 until gridWidth) {
-                if (grid[i][j] != 0) { // Assuming grid stores the color value
-                    // Draw the block color
+            for (j in 0 until gridWidth) { // Start from column 0
+                if (grid[i][j] != 0) { // Check if block exists
                     paint.color = grid[i][j]
+                    paint.style = Paint.Style.FILL
+
+                    // Draw filled block
                     canvas.drawRect(
                         (offsetX + j * blockSize).toFloat(),
-                        (i * blockSize).toFloat(),
+                        (offsetY + i * blockSize).toFloat(),
                         (offsetX + (j + 1) * blockSize).toFloat(),
-                        ((i + 1) * blockSize).toFloat(),
+                        (offsetY + (i + 1) * blockSize).toFloat(),
                         paint
                     )
 
-                    // Draw borders around the block
-                    paint.color = Color.BLACK // Border color
-                    val borderWidth = 2f
-
-                    // Top edge
+                    // Draw borders
+                    paint.style = Paint.Style.STROKE
+                    paint.color = Color.BLACK
+                    paint.strokeWidth = 4f
                     canvas.drawRect(
                         (offsetX + j * blockSize).toFloat(),
-                        (i * blockSize).toFloat(),
+                        (offsetY + i * blockSize).toFloat(),
                         (offsetX + (j + 1) * blockSize).toFloat(),
-                        (i * blockSize + borderWidth),
-                        paint
-                    )
-                    // Bottom edge
-                    canvas.drawRect(
-                        (offsetX + j * blockSize).toFloat(),
-                        ((i + 1) * blockSize - borderWidth).toFloat(),
-                        (offsetX + (j + 1) * blockSize).toFloat(),
-                        ((i + 1) * blockSize).toFloat(),
-                        paint
-                    )
-                    // Left edge
-                    canvas.drawRect(
-                        (offsetX + j * blockSize).toFloat(),
-                        (i * blockSize).toFloat(),
-                        (offsetX + j * blockSize + borderWidth),
-                        ((i + 1) * blockSize).toFloat(),
-                        paint
-                    )
-                    // Right edge
-                    canvas.drawRect(
-                        (offsetX + (j + 1) * blockSize - borderWidth).toFloat(),
-                        (i * blockSize).toFloat(),
-                        (offsetX + (j + 1) * blockSize).toFloat(),
-                        ((i + 1) * blockSize).toFloat(),
+                        (offsetY + (i + 1) * blockSize).toFloat(),
                         paint
                     )
                 }
@@ -532,6 +496,7 @@ class GameView(context: Context) : View(context) {
 
     private fun drawBackground(canvas: Canvas) {
         // Initialize the gradient dynamically with the correct height
+        paint.reset() // Reset paint
         val gradient = LinearGradient(
             0f, 0f, 0f, canvas.height.toFloat(),
             Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP
@@ -557,8 +522,6 @@ class GameView(context: Context) : View(context) {
             paint
         )
     }
-
-
 
     private fun togglePause() {
         paused = !paused // Toggle the pause state
@@ -663,7 +626,6 @@ class GameView(context: Context) : View(context) {
         }
                 val newTetromino = TETROMINOS[newType]?.copy(color = color, xPos = 6, yPos = 0)
                 ?: throw IllegalStateException("Tetromino type $newType not found in TETROMINOS map.")
-
 
         // Check for game over condition
         if (isGameOver(newTetromino)) {
