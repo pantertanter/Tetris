@@ -460,6 +460,12 @@ class GameView(context: Context) : View(context) {
                 }
             }
         }
+
+        // Draw rectangles in the sides of the screen
+        paint.color = Color.BLACK
+        paint.style = Paint.Style.FILL
+        canvas.drawRect(0f, 0f, offsetX.toFloat(), height.toFloat(), paint)
+        canvas.drawRect((offsetX + gridWidth * blockSize).toFloat(), 0f, width.toFloat(), height.toFloat(), paint)
     }
 
     private fun drawGrid(canvas: Canvas) {
