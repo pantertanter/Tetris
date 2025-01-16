@@ -8,9 +8,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.tetris.ui.theme.TetrisTheme
 import com.example.tetris.ui.GameView // Ensure this import is correct
 
+import com.google.firebase.FirebaseApp
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this) // Initialize Firebase
         setContent {
             TetrisTheme {
                 GameScreen()

@@ -15,6 +15,10 @@ import android.graphics.Shader
 import android.view.MotionEvent
 import android.media.MediaPlayer
 import com.example.tetris.R
+import com.example.tetris.firebase.HighScore
+import com.example.tetris.firebase.getHighScores
+
+import com.example.tetris.firebase.saveHighScore
 
 class GameView(context: Context) : View(context) {
     private val paint = Paint()
@@ -37,10 +41,15 @@ class GameView(context: Context) : View(context) {
 
     // Score variables
     private var score = 0 // Initialize the score
+    private var highScores: List<HighScore> = emptyList()
     private var level = 1 // Initialize the level
     private var gameIsStarted = false // Track whether the game has started
     private var gameOver = false
     private var paused = false  // Track whether the game is paused
+
+    // Highscore variables
+    private var highScoresFetched = false
+    private var fetchedHighScores: List<HighScore> = emptyList()
 
     // Game loop handler
     private val handler = Handler(Looper.getMainLooper())
@@ -380,38 +389,98 @@ class GameView(context: Context) : View(context) {
         )
     }
 
-    // Method to draw the game over message
     private fun drawGameOverMessage(canvas: Canvas) {
         // 1. Draw the background gradient
         val paint = Paint()
-        val gradient = LinearGradient(0f, 0f, 0f, height.toFloat(),
-            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP)
+        val gradient = LinearGradient(
+            0f, 0f, 0f, height.toFloat(),
+            Color.BLUE, Color.CYAN, Shader.TileMode.CLAMP
+        )
         paint.shader = gradient
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
 
-        // 2. Now, draw the game over text
+        // 2. Draw the game over text
         val textPaint = Paint().apply {
-            color = Color.WHITE  // White text for better contrast against the background
+            color = Color.WHITE
             textSize = 100f
             textAlign = Paint.Align.CENTER
-            // Adding a slight shadow effect for readability
-            setShadowLayer(10f, 5f, 5f, Color.BLACK)  // Adds a shadow to the text
+            setShadowLayer(10f, 5f, 5f, Color.BLACK)
         }
 
         // Base Y position for the first text
         var baseY = (canvas.height / 2).toFloat() - 200
+        val lineSpacing = 150f
 
-        // Line spacing (adjust this value as needed)
-        val lineSpacing = 200f // Change this to increase or decrease spacing
-
-        // Draw each line with appropriate spacing
         canvas.drawText("Game Over", (canvas.width / 2).toFloat(), baseY, textPaint)
-        baseY += lineSpacing // Move down for the next line
+        baseY += lineSpacing
         canvas.drawText("Score: $score", (canvas.width / 2).toFloat(), baseY, textPaint)
-        baseY += lineSpacing // Move down for the next line
+        baseY += lineSpacing
         canvas.drawText("Level: $level", (canvas.width / 2).toFloat(), baseY, textPaint)
-        baseY += lineSpacing // Move down for the next line
+        baseY += lineSpacing
         canvas.drawText("Tap to restart", (canvas.width / 2).toFloat(), baseY, textPaint)
+
+        // Ensure high scores are fetched before rendering
+        if (!highScoresFetched) {
+            canvas.drawText(
+                "Loading high scores...",
+                (canvas.width / 2).toFloat(),
+                (canvas.height / 2).toFloat(),
+                Paint().apply {
+                    color = Color.WHITE
+                    textSize = 60f
+                    textAlign = Paint.Align.CENTER
+                }
+            )
+        }
+
+        // Draw high scores
+        /*else if (fetchedHighScores.isNotEmpty()) {
+            drawHighScores(canvas, baseY + lineSpacing)
+        }*/
+    }
+
+    private fun drawHighScores(canvas: Canvas, startY: Float) {
+        if (fetchedHighScores.isEmpty()) {
+            // Handle no high scores
+            canvas.drawText(
+                "No high scores yet!",
+                (canvas.width / 2).toFloat(),
+                startY,
+                Paint().apply {
+                    color = Color.WHITE
+                    textSize = 60f
+                    textAlign = Paint.Align.CENTER
+                }
+            )
+        } else {
+            val textPaint = Paint().apply {
+                color = Color.WHITE
+                textSize = 60f
+                textAlign = Paint.Align.CENTER
+            }
+
+            var yOffset = startY
+            fetchedHighScores.forEachIndexed { index, highScore ->
+                canvas.drawText(
+                    "${index + 1}. ${highScore.playerName}: ${highScore.score}",
+                    (canvas.width / 2).toFloat(),
+                    yOffset,
+                    textPaint
+                )
+                yOffset += 100f // Adjust spacing between scores
+            }
+        }
+    }
+
+    // Call this function to fetch high scores and trigger a redraw
+    private fun fetchHighScores() {
+        getHighScores { highScores ->
+            // Update the fetched high scores
+            fetchedHighScores = highScores ?: emptyList()
+            highScoresFetched = true
+            // Trigger a redraw to include the high scores
+            postInvalidate()
+        }
     }
 
     private fun drawLevel(canvas: Canvas) {
@@ -758,14 +827,24 @@ class GameView(context: Context) : View(context) {
 
         if (lockedAtTop) {
             onGameOver()
+            return
         }
     }
 
     private fun onGameOver() {
-        gameOver = true // Set the gameOver flag
-        handler.removeCallbacks(gameRunnable) // Stop the game loop
-        playGameOverSound(context) // Play the game over sound
-        invalidate() // Redraw the view to show the "Game Over" message
+        saveHighScore("Player", score) // Save the current high score
+
+        // Fetch high scores asynchronously
+        fetchHighScores()
+
+        // Set the gameOver flag to ensure the correct screen is drawn
+        gameOver = true
+
+        // Stop the game loop
+        handler.removeCallbacks(gameRunnable)
+
+        // Play the game over sound
+        playGameOverSound(context)
     }
 
     private fun isGameOver(tetromino: Tetromino): Boolean {
