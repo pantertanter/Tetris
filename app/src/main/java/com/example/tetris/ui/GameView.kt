@@ -3,6 +3,7 @@ package com.example.tetris.ui
 import TETROMINOS
 import Tetromino
 import TetrominoType
+import android.content.ContentValues.TAG
 import android.os.Handler
 import android.os.Looper
 import android.view.View
@@ -14,11 +15,11 @@ import android.graphics.Paint
 import android.graphics.Shader
 import android.view.MotionEvent
 import android.media.MediaPlayer
+import android.util.Log
 import com.example.tetris.R
-import com.example.tetris.firebase.HighScore
-import com.example.tetris.firebase.getHighScores
-
-import com.example.tetris.firebase.saveHighScore
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 class GameView(context: Context) : View(context) {
     private val paint = Paint()
@@ -41,15 +42,18 @@ class GameView(context: Context) : View(context) {
 
     // Score variables
     private var score = 0 // Initialize the score
-    private var highScores: List<HighScore> = emptyList()
     private var level = 1 // Initialize the level
     private var gameIsStarted = false // Track whether the game has started
     private var gameOver = false
     private var paused = false  // Track whether the game is paused
 
     // Highscore variables
-    private var highScoresFetched = false
-    private var fetchedHighScores: List<HighScore> = emptyList()
+    private var highScoreSaved = false
+    private var fetchedHighScoresBool = false
+    private var fetchedHighScores: List<Pair<String, Long>> = emptyList()
+
+    // Firebase Firestore instance
+    private val db = Firebase.firestore
 
     // Game loop handler
     private val handler = Handler(Looper.getMainLooper())
@@ -104,8 +108,17 @@ class GameView(context: Context) : View(context) {
         super.onDraw(canvas)
 
         if (gameOver) {
-            drawGameOverMessage(canvas) // Draw the game over message
-            return // Stop further drawing
+            if (!highScoreSaved) {
+                saveHighScore("player1", score)
+                highScoreSaved = true
+            }
+            if (!fetchedHighScoresBool) {
+                getHighScores()
+                fetchedHighScoresBool = true
+            }
+            drawGameOverMessage(canvas)
+            drawHighScores(canvas)
+            return
         }
 
         if (paused) {
@@ -419,68 +432,64 @@ class GameView(context: Context) : View(context) {
         baseY += lineSpacing
         canvas.drawText("Tap to restart", (canvas.width / 2).toFloat(), baseY, textPaint)
 
-        // Ensure high scores are fetched before rendering
-        if (!highScoresFetched) {
-            canvas.drawText(
-                "Loading high scores...",
-                (canvas.width / 2).toFloat(),
-                (canvas.height / 2).toFloat(),
-                Paint().apply {
-                    color = Color.WHITE
-                    textSize = 60f
-                    textAlign = Paint.Align.CENTER
-                }
-            )
+        if (!highScoreSaved) {
+            // Save the high score only once
+            saveHighScore("player1", score)
+            highScoreSaved = true // Set the flag to prevent duplicate writes
         }
 
-        // Draw high scores
-        /*else if (fetchedHighScores.isNotEmpty()) {
-            drawHighScores(canvas, baseY + lineSpacing)
-        }*/
+
     }
 
-    private fun drawHighScores(canvas: Canvas, startY: Float) {
-        if (fetchedHighScores.isEmpty()) {
-            // Handle no high scores
-            canvas.drawText(
-                "No high scores yet!",
-                (canvas.width / 2).toFloat(),
-                startY,
-                Paint().apply {
-                    color = Color.WHITE
-                    textSize = 60f
-                    textAlign = Paint.Align.CENTER
-                }
-            )
-        } else {
+    private fun saveHighScore(playerName: String, score: Int) {
+        val user = hashMapOf(
+            "playerName" to playerName,
+            "score" to score,
+            "timestamp" to System.currentTimeMillis() // Add a timestamp
+        )
+    }
+
+        private fun drawHighScores(canvas: Canvas) {
             val textPaint = Paint().apply {
                 color = Color.WHITE
                 textSize = 60f
                 textAlign = Paint.Align.CENTER
+                setShadowLayer(5f, 2f, 2f, Color.BLACK)
             }
 
-            var yOffset = startY
-            fetchedHighScores.forEachIndexed { index, highScore ->
-                canvas.drawText(
-                    "${index + 1}. ${highScore.playerName}: ${highScore.score}",
-                    (canvas.width / 2).toFloat(),
-                    yOffset,
-                    textPaint
-                )
-                yOffset += 100f // Adjust spacing between scores
+            // Positioning variables
+            val baseY = (canvas.height / 2).toFloat() + 200
+            val lineSpacing = 80f
+            var currentY = baseY
+
+            // Draw header text
+            canvas.drawText("High Scores", (canvas.width / 2).toFloat(), baseY - 100, textPaint)
+
+            // Draw each high score
+            fetchedHighScores.forEachIndexed { index, (playerName, score) ->
+                val scoreText = "${index + 1}. $playerName: $score"
+                canvas.drawText(scoreText, (canvas.width / 2).toFloat(), currentY, textPaint)
+                currentY += lineSpacing
             }
         }
-    }
 
-    // Call this function to fetch high scores and trigger a redraw
-    private fun fetchHighScores() {
-        getHighScores { highScores ->
-            // Update the fetched high scores
-            fetchedHighScores = highScores ?: emptyList()
-            highScoresFetched = true
-            // Trigger a redraw to include the high scores
-            postInvalidate()
-        }
+    fun getHighScores() {
+        db.collection("high_scores")
+            .orderBy("score", Query.Direction.DESCENDING)
+            .get()
+            .addOnSuccessListener { result ->
+                fetchedHighScores = result.documents.mapNotNull { doc ->
+                    val playerName = doc.getString("playerName")
+                    val score = doc.getLong("score")
+                    if (playerName != null && score != null) {
+                        playerName to score // Store as a Pair
+                    } else null
+                }
+                postInvalidate() // Trigger a redraw of the Canvas
+            }
+            .addOnFailureListener { e ->
+                println("Error getting documents: $e")
+            }
     }
 
     private fun drawLevel(canvas: Canvas) {
@@ -832,11 +841,6 @@ class GameView(context: Context) : View(context) {
     }
 
     private fun onGameOver() {
-        saveHighScore("Player", score) // Save the current high score
-
-        // Fetch high scores asynchronously
-        fetchHighScores()
-
         // Set the gameOver flag to ensure the correct screen is drawn
         gameOver = true
 

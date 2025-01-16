@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.tetris"
-        minSdk = 24
+        minSdk = 28
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -59,6 +59,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.firebase:firebase-common-ktx:21.0.0")
+    implementation("com.google.firebase:firebase-firestore:25.1.1")
+    implementation("com.google.firebase:firebase-storage:21.0.1")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
@@ -71,4 +73,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0")) // Declare BOM first
     implementation("com.google.firebase:firebase-database-ktx") // Use BOM for versioning
     implementation("com.google.firebase:firebase-analytics-ktx") // Add KTX suffix
+    implementation("com.google.firebase:firebase-firestore-ktx") // Add KTX suffix
+
 }

@@ -13,19 +13,25 @@ import com.google.firebase.FirebaseApp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        FirebaseApp.initializeApp(this) // Initialize Firebase
+        try {
+            FirebaseApp.initializeApp(this) // Initialize Firebase
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Log error or show an appropriate message
+        }
+
         setContent {
             TetrisTheme {
                 GameScreen()
             }
         }
     }
-}
 
-@Composable
-fun GameScreen() {
-    // Integrate GameView into Jetpack Compose using AndroidView
-    AndroidView(factory = { context ->
-        GameView(context) // Create an instance of GameView
-    })
+    @Composable
+    fun GameScreen() {
+        // Integrate GameView into Jetpack Compose using AndroidView
+        AndroidView(factory = { context ->
+            GameView(context) // Create an instance of GameView
+        })
+    }
 }
