@@ -108,14 +108,6 @@ class GameView(context: Context) : View(context) {
         super.onDraw(canvas)
 
         if (gameOver) {
-            if (!highScoreSaved) {
-                saveHighScore("player1", score)
-                highScoreSaved = true
-            }
-            if (!fetchedHighScoresBool) {
-                getHighScores()
-                fetchedHighScoresBool = true
-            }
             drawGameOverMessage(canvas)
             drawHighScores(canvas)
             return
@@ -437,8 +429,10 @@ class GameView(context: Context) : View(context) {
             saveHighScore("player1", score)
             highScoreSaved = true // Set the flag to prevent duplicate writes
         }
-
-
+        if (!fetchedHighScoresBool) {
+            getHighScores()
+            fetchedHighScoresBool = true
+        }
     }
 
     private fun saveHighScore(playerName: String, score: Int) {
