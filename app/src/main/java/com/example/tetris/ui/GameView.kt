@@ -3,6 +3,7 @@ package com.example.tetris.ui
 import TETROMINOS
 import Tetromino
 import TetrominoType
+import android.app.AlertDialog
 import android.content.ContentValues.TAG
 import android.os.Handler
 import android.os.Looper
@@ -27,6 +28,9 @@ import com.google.firebase.ktx.Firebase
 import android.widget.RelativeLayout
 
 class GameView(context: Context) : View(context) {
+
+    var onStartScreenShown: (() -> Unit)? = null // Callback to notify when the start screen is displayed
+
     private val paint = Paint()
     private var tetromino: Tetromino = getNextTetromino() // Initialize Tetromino
 
@@ -52,8 +56,7 @@ class GameView(context: Context) : View(context) {
     private var gameOver = false // Track whether the game is over
     private var paused = false  // Track whether the game is paused
     private var playerName: String = "playerOne" // Variable to store the player's name
-    private var nameInput: EditText? = null // Nullable to avoid initialization issues
-
+    private var showPopupOnce = true // Ensures the popup shows only once
 
     // Highscore variables
     private var highScoreSaved = false
@@ -400,53 +403,48 @@ class GameView(context: Context) : View(context) {
             textPaint
         )
 
-    addNameInputFieldIfNeeded()
+        if (showPopupOnce) {
+            showPopupOnce = false
+            showPlayerNamePopup()
+        }
+
+        // Notify the activity to show the input box
+        onStartScreenShown?.invoke()
     }
 
-    fun addPlayerNameInput() {
-        // Get the root RelativeLayout from your XML
-        val rootLayout = findViewById<RelativeLayout>(R.id.root_layout) // Ensure this ID matches your XML root layout
+    private fun showPlayerNamePopup() {
+        // Create an AlertDialog builder
+        val builder = AlertDialog.Builder(context)
+        builder.setTitle("Enter Player Name")
 
-        // Check if the EditText already exists
-        if (rootLayout.findViewWithTag<EditText>("playerNameInput") == null) {
-            // Create the EditText dynamically
-            val nameInput = EditText(this).apply {
-                tag = "playerNameInput" // Assign a tag for identification
-                hint = "Enter Player Name"
-                textSize = 18f
-                setPadding(16, 16, 16, 16)
-                setBackgroundColor(Color.WHITE)
-            }
+        // Create an EditText for input
+        val input = EditText(context).apply {
+            hint = "Player Name"
+            textSize = 16f
+            setPadding(16, 16, 16, 16)
+        }
 
-            // Define layout parameters for positioning
-            val layoutParams = RelativeLayout.LayoutParams(
-                RelativeLayout.LayoutParams.MATCH_PARENT,
-                RelativeLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                addRule(RelativeLayout.BELOW, R.id.hello_world) // Position below the TextView
-                setMargins(16, 16, 16, 16) // Add margins
-            }
+        // Add the EditText to the dialog
+        builder.setView(input)
 
-            // Add the EditText to the RelativeLayout
-            rootLayout.addView(nameInput, layoutParams)
-
-            // Handle player name input
-            nameInput.setOnEditorActionListener { _, _, _ ->
-                val input = nameInput.text.toString().trim()
-                if (input.isNotEmpty()) {
-                    playerName = input // Save to the playerName variable
-                    Toast.makeText(this, "Welcome, $playerName!", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Name cannot be empty!", Toast.LENGTH_SHORT).show()
-                }
-                false // Dismiss the keyboard
+        // Set up the buttons
+        builder.setPositiveButton("OK") { _, _ ->
+            val enteredName = input.text.toString().trim()
+            if (enteredName.isNotEmpty()) {
+                playerName = enteredName
+                Toast.makeText(context, "Welcome, $playerName!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Name cannot be empty!", Toast.LENGTH_SHORT).show()
+                showPopupOnce = true // Re-show the popup if no name is entered
             }
         }
-    }
 
-    // Function to retrieve the player's name when needed
-    private fun getPlayerName(): String {
-        return playerName
+        builder.setNegativeButton("Cancel") { dialog, _ ->
+            dialog.dismiss()
+        }
+
+        // Show the dialog
+        builder.show()
     }
 
     private fun drawGameOverMessage(canvas: Canvas) {

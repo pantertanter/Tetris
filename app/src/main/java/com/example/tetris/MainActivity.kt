@@ -13,12 +13,6 @@ import com.google.firebase.FirebaseApp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            FirebaseApp.initializeApp(this) // Initialize Firebase
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // Log error or show an appropriate message
-        }
 
         setContent {
             TetrisTheme {
