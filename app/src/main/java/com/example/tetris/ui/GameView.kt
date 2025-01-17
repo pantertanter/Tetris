@@ -14,9 +14,11 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
+import android.graphics.Typeface
 import android.view.MotionEvent
 import android.media.MediaPlayer
 import android.util.Log
+import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -26,6 +28,7 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import android.widget.RelativeLayout
+import androidx.core.content.res.ResourcesCompat
 
 class GameView(context: Context) : View(context) {
 
@@ -55,8 +58,8 @@ class GameView(context: Context) : View(context) {
     private var gameIsStarted = false // Track whether the game has started
     private var gameOver = false // Track whether the game is over
     private var paused = false  // Track whether the game is paused
+    private lateinit var nameInput: EditText
     private var playerName: String = "playerOne" // Variable to store the player's name
-    private var showPopupOnce = true // Ensures the popup shows only once
 
     // Highscore variables
     private var highScoreSaved = false
@@ -403,48 +406,52 @@ class GameView(context: Context) : View(context) {
             textPaint
         )
 
-        if (showPopupOnce) {
-            showPopupOnce = false
-            showPlayerNamePopup()
+        // Add styled input field at the bottom
+        if (!this::nameInput.isInitialized) {
+            addStyledInputField()
         }
-
-        // Notify the activity to show the input box
-        onStartScreenShown?.invoke()
     }
 
-    private fun showPlayerNamePopup() {
-        // Create an AlertDialog builder
-        val builder = AlertDialog.Builder(context)
-        builder.setTitle("Enter Player Name")
+    private fun addStyledInputField() {
+        val parentLayout = parent as? FrameLayout ?: return // Ensure GameView has a parent FrameLayout
 
-        // Create an EditText for input
-        val input = EditText(context).apply {
-            hint = "Player Name"
-            textSize = 16f
+        // Create and style the EditText
+        nameInput = EditText(context).apply {
+            hint = "Enter Player Name"
+            setHintTextColor(Color.GRAY)
+            setTextColor(Color.BLACK)
+            textSize = 18f
             setPadding(16, 16, 16, 16)
+            setBackgroundResource(R.drawable.edit_text_background) // Custom background drawable
+            typeface = Typeface.SERIF // Use a built-in serif typeface
         }
 
-        // Add the EditText to the dialog
-        builder.setView(input)
+        // Layout parameters for positioning at the bottom
+        val params = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            gravity = Gravity.BOTTOM
+            marginStart = 16
+            marginEnd = 16
+            bottomMargin = 50 // Margin at the bottom
+        }
 
-        // Set up the buttons
-        builder.setPositiveButton("OK") { _, _ ->
-            val enteredName = input.text.toString().trim()
-            if (enteredName.isNotEmpty()) {
-                playerName = enteredName
+        // Add the EditText to the parent layout
+        parentLayout.addView(nameInput, params)
+
+        // Handle input completion
+        nameInput.setOnEditorActionListener { _, _, _ ->
+            playerName = nameInput.text.toString().trim()
+            if (playerName.isNotEmpty()) {
                 Toast.makeText(context, "Welcome, $playerName!", Toast.LENGTH_SHORT).show()
+                nameInput.visibility = GONE // Hide the input field after input
+                invalidate() // Redraw the GameView if necessary
             } else {
                 Toast.makeText(context, "Name cannot be empty!", Toast.LENGTH_SHORT).show()
-                showPopupOnce = true // Re-show the popup if no name is entered
             }
+            false
         }
-
-        builder.setNegativeButton("Cancel") { dialog, _ ->
-            dialog.dismiss()
-        }
-
-        // Show the dialog
-        builder.show()
     }
 
     private fun drawGameOverMessage(canvas: Canvas) {

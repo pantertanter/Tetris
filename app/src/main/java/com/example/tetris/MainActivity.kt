@@ -1,16 +1,16 @@
 package com.example.tetris
 
 import android.os.Bundle
+import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.tetris.ui.GameView
 import com.example.tetris.ui.theme.TetrisTheme
-import com.example.tetris.ui.GameView // Ensure this import is correct
-
-import com.google.firebase.FirebaseApp
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -23,9 +23,11 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun GameScreen() {
-        // Integrate GameView into Jetpack Compose using AndroidView
         AndroidView(factory = { context ->
-            GameView(context) // Create an instance of GameView
+            val frameLayout = FrameLayout(context)
+            val gameView = GameView(context)
+            frameLayout.addView(gameView) // Add GameView to FrameLayout
+            frameLayout // Return the FrameLayout containing GameView
         })
     }
 }
