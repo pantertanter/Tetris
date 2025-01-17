@@ -16,10 +16,15 @@ import android.graphics.Shader
 import android.view.MotionEvent
 import android.media.MediaPlayer
 import android.util.Log
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.Toast
 import com.example.tetris.R
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import android.widget.RelativeLayout
 
 class GameView(context: Context) : View(context) {
     private val paint = Paint()
@@ -44,8 +49,11 @@ class GameView(context: Context) : View(context) {
     private var score = 0 // Initialize the score
     private var level = 1 // Initialize the level
     private var gameIsStarted = false // Track whether the game has started
-    private var gameOver = false
+    private var gameOver = false // Track whether the game is over
     private var paused = false  // Track whether the game is paused
+    private var playerName: String = "playerOne" // Variable to store the player's name
+    private var nameInput: EditText? = null // Nullable to avoid initialization issues
+
 
     // Highscore variables
     private var highScoreSaved = false
@@ -109,7 +117,6 @@ class GameView(context: Context) : View(context) {
 
         if (gameOver) {
             drawGameOverMessage(canvas)
-            drawHighScores(canvas)
             return
         }
 
@@ -392,6 +399,54 @@ class GameView(context: Context) : View(context) {
             fastDropAreaTop + fastDropAreaHeight / 4 * 3,
             textPaint
         )
+
+    addNameInputFieldIfNeeded()
+    }
+
+    fun addPlayerNameInput() {
+        // Get the root RelativeLayout from your XML
+        val rootLayout = findViewById<RelativeLayout>(R.id.root_layout) // Ensure this ID matches your XML root layout
+
+        // Check if the EditText already exists
+        if (rootLayout.findViewWithTag<EditText>("playerNameInput") == null) {
+            // Create the EditText dynamically
+            val nameInput = EditText(this).apply {
+                tag = "playerNameInput" // Assign a tag for identification
+                hint = "Enter Player Name"
+                textSize = 18f
+                setPadding(16, 16, 16, 16)
+                setBackgroundColor(Color.WHITE)
+            }
+
+            // Define layout parameters for positioning
+            val layoutParams = RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT,
+                RelativeLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                addRule(RelativeLayout.BELOW, R.id.hello_world) // Position below the TextView
+                setMargins(16, 16, 16, 16) // Add margins
+            }
+
+            // Add the EditText to the RelativeLayout
+            rootLayout.addView(nameInput, layoutParams)
+
+            // Handle player name input
+            nameInput.setOnEditorActionListener { _, _, _ ->
+                val input = nameInput.text.toString().trim()
+                if (input.isNotEmpty()) {
+                    playerName = input // Save to the playerName variable
+                    Toast.makeText(this, "Welcome, $playerName!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Name cannot be empty!", Toast.LENGTH_SHORT).show()
+                }
+                false // Dismiss the keyboard
+            }
+        }
+    }
+
+    // Function to retrieve the player's name when needed
+    private fun getPlayerName(): String {
+        return playerName
     }
 
     private fun drawGameOverMessage(canvas: Canvas) {
@@ -413,7 +468,7 @@ class GameView(context: Context) : View(context) {
         }
 
         // Base Y position for the first text
-        var baseY = (canvas.height / 2).toFloat() - 200
+        var baseY = (canvas.height / 2).toFloat() - 800
         val lineSpacing = 150f
 
         canvas.drawText("Game Over", (canvas.width / 2).toFloat(), baseY, textPaint)
@@ -426,13 +481,17 @@ class GameView(context: Context) : View(context) {
 
         if (!highScoreSaved) {
             // Save the high score only once
-            saveHighScore("player1", score)
+            saveHighScore(playerName, score)
             highScoreSaved = true // Set the flag to prevent duplicate writes
         }
         if (!fetchedHighScoresBool) {
             getHighScores()
             fetchedHighScoresBool = true
+        } else {
+            drawHighScores(canvas)
         }
+
+
     }
 
     private fun saveHighScore(playerName: String, score: Int) {
@@ -441,23 +500,32 @@ class GameView(context: Context) : View(context) {
             "score" to score,
             "timestamp" to System.currentTimeMillis() // Add a timestamp
         )
+
+        db.collection("high_scores")
+            .add(user)
+            .addOnSuccessListener { documentReference ->
+                Log.d(TAG, "DocumentSnapshot added with ID: ${documentReference.id}")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error adding document", e)
+            }
     }
 
         private fun drawHighScores(canvas: Canvas) {
             val textPaint = Paint().apply {
                 color = Color.WHITE
-                textSize = 60f
+                textSize = 100f
                 textAlign = Paint.Align.CENTER
-                setShadowLayer(5f, 2f, 2f, Color.BLACK)
+                setShadowLayer(10f, 5f, 5f, Color.BLACK)
             }
 
             // Positioning variables
             val baseY = (canvas.height / 2).toFloat() + 200
-            val lineSpacing = 80f
+            val lineSpacing = 200f
             var currentY = baseY
 
             // Draw header text
-            canvas.drawText("High Scores", (canvas.width / 2).toFloat(), baseY - 100, textPaint)
+            canvas.drawText("High Scores", (canvas.width / 2).toFloat(), baseY - 200, textPaint)
 
             // Draw each high score
             fetchedHighScores.forEachIndexed { index, (playerName, score) ->
@@ -470,6 +538,7 @@ class GameView(context: Context) : View(context) {
     fun getHighScores() {
         db.collection("high_scores")
             .orderBy("score", Query.Direction.DESCENDING)
+            .limit(5)
             .get()
             .addOnSuccessListener { result ->
                 fetchedHighScores = result.documents.mapNotNull { doc ->
@@ -648,6 +717,8 @@ class GameView(context: Context) : View(context) {
 
                 // If game is over, restart the game
                 if (gameOver) {
+                    highScoreSaved = false // Reset high score saved flag
+                    fetchedHighScoresBool = false // Reset fetched high scores flag
                     resetGame() // Restart game if game over
                     return true
                 }
