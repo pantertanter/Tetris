@@ -3,7 +3,6 @@ package com.example.tetris.ui
 import TETROMINOS
 import Tetromino
 import TetrominoType
-import android.app.AlertDialog
 import android.content.ContentValues.TAG
 import android.os.Handler
 import android.os.Looper
@@ -19,7 +18,6 @@ import android.view.MotionEvent
 import android.media.MediaPlayer
 import android.util.Log
 import android.view.Gravity
-import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
@@ -27,12 +25,8 @@ import com.example.tetris.R
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import android.widget.RelativeLayout
-import androidx.core.content.res.ResourcesCompat
 
 class GameView(context: Context) : View(context) {
-
-    var onStartScreenShown: (() -> Unit)? = null // Callback to notify when the start screen is displayed
 
     private val paint = Paint()
     private var tetromino: Tetromino = getNextTetromino() // Initialize Tetromino
@@ -495,8 +489,6 @@ class GameView(context: Context) : View(context) {
         } else {
             drawHighScores(canvas)
         }
-
-
     }
 
     private fun saveHighScore(playerName: String, score: Int) {
@@ -540,7 +532,7 @@ class GameView(context: Context) : View(context) {
             }
         }
 
-    fun getHighScores() {
+    private fun getHighScores() {
         db.collection("high_scores")
             .orderBy("score", Query.Direction.DESCENDING)
             .limit(5)
@@ -965,7 +957,6 @@ class GameView(context: Context) : View(context) {
         // Start the game loop again
         handler.post(gameRunnable) // Restart the game loop
     }
-
 
     private fun initializeGame() {
         // Reset game variables
